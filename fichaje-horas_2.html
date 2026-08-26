@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fichaje de horas</title>
+
+<!-- Cliente de Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SheetJS para exportar a Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Tipografía -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#eef1f5;
+    --card:#ffffff;
+    --ink:#0b1220;
+    --text:#1c2433;
+    --muted:#667085;
+    --border:#e2e5eb;
+    --border-soft:#edeff3;
+    --accent:#2951a3;
+    --accent-dark:#1e3d80;
+    --accent-soft:#eaf0fb;
+    --danger:#9f2b23;
+    --danger-soft:#fbebe9;
+    --radius:10px;
+    --radius-lg:14px;
+    --shadow:0 1px 2px rgba(11,18,32,0.04), 0 1px 8px rgba(11,18,32,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:640px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    padding:20px 26px;
+    background:var(--ink);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid #000;
+  }
+  header .brand{
+    display:flex;
+    align-items:center;
+    gap:11px;
+  }
+  header .brand .mark{
+    width:32px;
+    height:32px;
+    border-radius:8px;
+    background:linear-gradient(155deg,#3a63b8,#213a70);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    color:#fff;
+    flex-shrink:0;
+  }
+  header h1{
+    font-size:15.5px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:0.01em;
+    line-height:1.3;
+  }
+  header .brand small{
+    display:block;
+    font-size:11.5px;
+    font-weight:400;
+    color:#9aa5b8;
+    letter-spacing:0.01em;
+  }
+  header .who{
+    font-size:13px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    color:#cfd6e3;
+  }
+  header .who span{
+    font-weight:600;
+    color:#fff;
+  }
+  header button.link{
+    background:none;
+    border:none;
+    color:#9aa5b8;
+    font-size:12.5px;
+    cursor:pointer;
+    padding:0;
+    font-family:inherit;
+    text-decoration:none;
+    border-bottom:1px solid transparent;
+  }
+  header button.link:hover{ color:#fff; border-color:#5c6779; }
+  main{
+    flex:1;
+    padding:26px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    padding:22px;
+    margin-bottom:16px;
+    box-shadow:var(--shadow);
+    border:1px solid var(--border-soft);
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border:1px solid transparent;
+    border-radius:var(--radius);
+    padding:12px 18px;
+    font-size:14.5px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    width:100%;
+    transition:background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    letter-spacing:0.01em;
+  }
+  .btn-primary{ background:var(--ink); color:#fff; }
+  .btn-primary:hover{ background:#1c2740; }
+  .btn-danger{ background:var(--danger); color:#fff; }
+  .btn-danger:hover{ background:#7f221c; }
+  .btn-outline{ background:#fff; color:var(--text); border-color:var(--border); }
+  .btn-outline:hover{ border-color:#b7bec9; background:#fafbfc; }
+  .btn-secondary{ background:#fff; color:var(--muted); border-color:var(--border); }
+  .btn-secondary:hover{ color:var(--text); border-color:#b7bec9; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .member-list, .project-list{ display:flex; flex-direction:column; gap:10px; }
+  .member-item{
+    padding:18px 20px;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--border-soft);
+    background:#fff;
+    font-size:15px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+    text-align:left;
+    color:var(--text);
+    box-shadow:var(--shadow);
+    transition:border-color 0.15s ease, transform 0.1s ease;
+  }
+  .member-item:hover{ border-color:var(--accent); transform:translateY(-1px); }
+
+  .project-item{
+    padding:16px 20px;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--border-soft);
+    background:#fff;
+    cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:var(--shadow);
+    transition:border-color 0.15s ease;
+  }
+  .project-item:hover{ border-color:var(--accent); }
+  .project-item .name{ font-weight:600; font-size:15px; letter-spacing:0.01em; }
+  .project-item .meta{ font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .badge{
+    font-size:11px;
+    padding:4px 10px;
+    border-radius:999px;
+    background:var(--accent-soft);
+    color:var(--accent-dark);
+    font-weight:600;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+  }
+  .badge.finished{ background:#f0f1f3; color:var(--muted); }
+
+  .section-title{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    color:var(--muted);
+    margin:26px 0 10px;
+    font-weight:700;
+  }
+
+  .timer{
+    font-size:38px;
+    font-weight:700;
+    text-align:center;
+    margin:6px 0 16px;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:0.01em;
+    color:var(--ink);
+  }
+  .status-line{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:18px;
+  }
+
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th, td{ text-align:left; padding:11px 4px; border-bottom:1px solid var(--border-soft); }
+  th{ color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; }
+  tr:last-child td{ border-bottom:none; }
+  td.hours{ text-align:right; font-variant-numeric:tabular-nums; font-weight:500; }
+  tfoot td{ font-weight:700; border-top:1px solid var(--text); border-bottom:none; padding-top:13px; color:var(--ink); }
+
+  .row-actions{ display:flex; gap:10px; margin-top:16px; }
+  .row-actions .btn{ width:auto; flex:1; }
+
+  .back-link{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-weight:600;
+    font-size:13px;
+    font-family:inherit;
+    cursor:pointer;
+    padding:0 0 16px 0;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+  }
+  .back-link:hover{ color:var(--text); }
+
+  .empty{ color:var(--muted); font-size:14px; text-align:center; padding:26px 0; }
+
+  .new-project-form{ display:flex; gap:10px; margin-top:2px; }
+  .new-project-form input{
+    flex:1;
+    padding:12px 14px;
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    font-size:14px;
+    font-family:inherit;
+    color:var(--text);
+    background:#fbfbfc;
+  }
+  .new-project-form input:focus{ outline:none; border-color:var(--accent); background:#fff; }
+  .new-project-form button{ width:auto; padding:12px 18px; }
+
+  .finished-banner{
+    background:#f5f6f8;
+    color:var(--text);
+    border-radius:var(--radius);
+    padding:13px 16px;
+    font-size:13px;
+    margin-bottom:18px;
+    text-align:center;
+    border:1px solid var(--border-soft);
+    line-height:1.6;
+  }
+  .finished-banner strong{ color:var(--ink); }
+
+  .status-list{ display:flex; flex-direction:column; }
+  .status-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:11px 0;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .status-row:last-child{ border-bottom:none; }
+  .status-name{ font-size:14px; font-weight:600; color:var(--text); }
+  .you-tag{ font-size:11.5px; font-weight:500; color:var(--muted); }
+  .status-chip{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    padding:5px 11px;
+    border-radius:999px;
+    background:#f0f1f3;
+    white-space:nowrap;
+  }
+  .status-chip.active{
+    color:var(--accent-dark);
+    background:var(--accent-soft);
+  }
+
+  .config-warning{
+    background:#fdf6ec;
+    border:1px solid #ecd7ab;
+    color:#7a5416;
+    padding:16px 18px;
+    border-radius:var(--radius-lg);
+    font-size:13.5px;
+    line-height:1.6;
+    margin:26px;
+  }
+  .config-warning code{
+    background:rgba(0,0,0,0.06);
+    padding:1px 5px;
+    border-radius:4px;
+    font-size:12.5px;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--ink);
+    color:#fff;
+    padding:11px 20px;
+    border-radius:var(--radius);
+    font-size:13px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:50;
+    box-shadow:0 4px 16px rgba(0,0,0,0.25);
+  }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="mark">FH</div>
+      <h1>Fichaje por proyecto<small>Control de horas del equipo</small></h1>
+    </div>
+    <div class="who" id="who-box"></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   1) CONFIGURACIÓN — rellena esto con los datos de tu proyecto
+      de Supabase (Project Settings → API)
+   ========================================================= */
+const SUPABASE_URL = "https://jrckemftmcavjvssmayy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyY2tlbWZ0bWNhdmp2c3NtYXl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2Njk2ODMsImV4cCI6MjEwMzI0NTY4M30.e16srrlFRc9dt8KUuvmBtAjPbmA7IJSahH-dMA_orW4";
+/* ========================================================= */
+
+const configured = !SUPABASE_URL.startsWith("PEGA_AQUI") && !SUPABASE_ANON_KEY.startsWith("PEGA_AQUI");
+let db = null;
+if (configured) {
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+const mainEl = document.getElementById("main");
+const whoBox = document.getElementById("who-box");
+const toastEl = document.getElementById("toast");
+
+let state = {
+  member: null,      // {id, name}
+  members: [],       // todo el equipo (para desglose por persona)
+  projects: [],
+  currentProject: null,
+  entries: [],        // entries of currentProject
+  timerInterval: null,
+};
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(()=>toastEl.classList.remove("show"), 2200);
+}
+
+function fmtHours(hoursDecimal){
+  const h = Math.floor(hoursDecimal);
+  const m = Math.round((hoursDecimal - h) * 60);
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
+function dateKey(d){
+  // YYYY-MM-DD en horario local
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-CA');
+}
+
+function dateLabel(key){
+  const dt = new Date(key + "T00:00:00");
+  return dt.toLocaleDateString('es-ES', { weekday:'short', day:'2-digit', month:'2-digit' });
+}
+
+/* ---------------------- Arranque ---------------------- */
+
+async function init(){
+  if (!configured){
+    mainEl.innerHTML = `<div class="config-warning">
+      <strong>Falta configurar Supabase.</strong><br><br>
+      Abre este archivo con un editor de texto y rellena <code>SUPABASE_URL</code> y
+      <code>SUPABASE_ANON_KEY</code> al principio del &lt;script&gt; con los datos de tu proyecto
+      (Project Settings → API en supabase.com). Antes, ejecuta el archivo
+      <code>supabase_schema.sql</code> en el SQL Editor de tu proyecto.
+    </div>`;
+    return;
+  }
+
+  const savedId = localStorage.getItem("fh_member_id");
+  const savedName = localStorage.getItem("fh_member_name");
+  if (savedId && savedName){
+    state.member = { id: savedId, name: savedName };
+    await goToProjects();
+  } else {
+    await renderLogin();
+  }
+}
+
+/* ---------------------- Header ---------------------- */
+
+function renderHeader(){
+  if (state.member){
+    whoBox.innerHTML = `
+      <span>${state.member.name}</span>
+      <button class="link" id="logout-btn">cambiar usuario</button>
+    `;
+    document.getElementById("logout-btn").onclick = logout;
+  } else {
+    whoBox.innerHTML = "";
+  }
+}
+
+function logout(){
+  localStorage.removeItem("fh_member_id");
+  localStorage.removeItem("fh_member_name");
+  state.member = null;
+  stopTimer();
+  renderLogin();
+}
+
+/* ---------------------- Login ---------------------- */
+
+async function renderLogin(){
+  renderHeader();
+  mainEl.innerHTML = `<div class="card"><div class="empty">Cargando personas…</div></div>`;
+
+  const { data, error } = await db.from("members").select("*").order("name");
+  if (error){
+    mainEl.innerHTML = `<div class="card"><div class="empty">Error cargando usuarios: ${error.message}</div></div>`;
+    return;
+  }
+  state.members = data || [];
+
+  mainEl.innerHTML = `
+    <div class="section-title">¿Quién eres?</div>
+    <div class="member-list" id="member-list"></div>
+  `;
+  const list = document.getElementById("member-list");
+  if (!data.length){
+    list.innerHTML = `<div class="empty">No hay usuarios en la tabla "members" todavía.</div>`;
+    return;
+  }
+  data.forEach(m=>{
+    const btn = document.createElement("button");
+    btn.className = "member-item";
+    btn.textContent = m.name;
+    btn.onclick = () => selectMember(m);
+    list.appendChild(btn);
+  });
+}
+
+async function selectMember(m){
+  state.member = { id: m.id, name: m.name };
+  localStorage.setItem("fh_member_id", m.id);
+  localStorage.setItem("fh_member_name", m.name);
+  await goToProjects();
+}
+
+/* ---------------------- Lista de proyectos ---------------------- */
+
+async function ensureMembers(){
+  if (state.members && state.members.length) return;
+  const { data } = await db.from("members").select("*").order("name");
+  state.members = data || [];
+}
+
+async function goToProjects(){
+  stopTimer();
+  state.currentProject = null;
+  renderHeader();
+  mainEl.innerHTML = `<div class="card"><div class="empty">Cargando proyectos…</div></div>`;
+  await ensureMembers();
+
+  const { data, error } = await db.from("projects").select("*").order("created_at", { ascending:false });
+  if (error){
+    mainEl.innerHTML = `<div class="card"><div class="empty">Error cargando proyectos: ${error.message}</div></div>`;
+    return;
+  }
+  state.projects = data;
+  renderProjects();
+}
+
+function renderProjects(){
+  const active = state.projects.filter(p=>p.status !== "finished");
+  const finished = state.projects.filter(p=>p.status === "finished");
+
+  let html = `
+    <div class="card">
+      <div class="new-project-form">
+        <input type="text" id="new-project-name" placeholder="Nombre del nuevo proyecto (ej. Página web)">
+        <button class="btn btn-primary" id="new-project-btn">Crear</button>
+      </div>
+    </div>
+    <div class="section-title">Proyectos activos</div>
+    <div class="project-list">
+  `;
+  if (!active.length){
+    html += `<div class="empty">Todavía no hay proyectos activos.</div>`;
+  } else {
+    active.forEach(p=>{
+      html += `
+        <div class="project-item" data-id="${p.id}">
+          <div>
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="meta">Creado ${new Date(p.created_at).toLocaleDateString('es-ES')}</div>
+          </div>
+          <span class="badge">activo</span>
+        </div>`;
+    });
+  }
+  html += `</div>`;
+
+  if (finished.length){
+    html += `<div class="section-title">Proyectos finalizados</div><div class="project-list">`;
+    finished.forEach(p=>{
+      html += `
+        <div class="project-item" data-id="${p.id}">
+          <div>
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="meta">Finalizado ${p.finished_at ? new Date(p.finished_at).toLocaleDateString('es-ES') : ''}</div>
+          </div>
+          <span class="badge finished">finalizado</span>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  mainEl.innerHTML = html;
+
+  document.getElementById("new-project-btn").onclick = createProject;
+  document.getElementById("new-project-name").addEventListener("keydown", (e)=>{
+    if (e.key === "Enter") createProject();
+  });
+  document.querySelectorAll(".project-item").forEach(el=>{
+    el.onclick = () => openProject(el.dataset.id);
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+async function createProject(){
+  const input = document.getElementById("new-project-name");
+  const name = input.value.trim();
+  if (!name) return;
+  const btn = document.getElementById("new-project-btn");
+  btn.disabled = true;
+  const { error } = await db.from("projects").insert({ name, status:"active" });
+  btn.disabled = false;
+  if (error){
+    showToast("Error creando el proyecto: " + error.message);
+    return;
+  }
+  input.value = "";
+  showToast("Proyecto creado");
+  await goToProjects();
+}
+
+/* ---------------------- Vista de proyecto ---------------------- */
+
+async function openProject(projectId){
+  const project = state.projects.find(p=>p.id === projectId);
+  if (!project) return;
+  state.currentProject = project;
+  await loadEntriesAndRender();
+}
+
+async function loadEntriesAndRender(){
+  const project = state.currentProject;
+  mainEl.innerHTML = `<div class="card"><div class="empty">Cargando…</div></div>`;
+
+  const { data, error } = await db
+    .from("time_entries")
+    .select("*, members(name)")
+    .eq("project_id", project.id)
+    .order("clock_in", { ascending:true });
+
+  if (error){
+    mainEl.innerHTML = `<div class="card"><div class="empty">Error cargando fichajes: ${error.message}</div></div>`;
+    return;
+  }
+  state.entries = data;
+  renderProjectView();
+}
+
+function myOpenEntry(){
+  return state.entries.find(e => e.member_id === state.member.id && !e.clock_out);
+}
+
+function renderProjectView(){
+  const project = state.currentProject;
+  const isFinished = project.status === "finished";
+  const open = myOpenEntry();
+  const members = state.members;
+
+  const { dailyRows, totalsByMember, grandTotal } = computeSummary(state.entries, members);
+
+  let html = `<button class="back-link" id="back-btn">← Proyectos</button>`;
+  html += `<div class="card">
+    <div class="section-title" style="margin-top:0">${escapeHtml(project.name)}</div>`;
+
+  if (isFinished){
+    const perMemberSummary = members.map(m => `${escapeHtml(m.name)}: <strong>${fmtHours(totalsByMember[m.id]||0)}</strong>`).join(' &nbsp;·&nbsp; ');
+    html += `<div class="finished-banner">
+      Proyecto finalizado el ${project.finished_at ? new Date(project.finished_at).toLocaleDateString('es-ES') : ''}.<br>
+      Total: <strong>${fmtHours(grandTotal)}</strong>${perMemberSummary ? ' &nbsp;(' + perMemberSummary + ')' : ''}
+    </div>`;
+  } else {
+    html += `
+      <div class="timer" id="timer-display">${open ? "00:00:00" : "—"}</div>
+      <div class="status-line" id="status-line">${open ? "Fichado desde " + new Date(open.clock_in).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}) : "No estás fichado ahora mismo"}</div>
+      <button class="btn ${open ? "btn-danger" : "btn-primary"}" id="clock-btn">
+        ${open ? "Marcar salida" : "Marcar entrada"}
+      </button>
+    `;
+  }
+  html += `</div>`;
+
+  if (!isFinished && members.length){
+    html += `<div class="card">
+      <div class="section-title" style="margin-top:0">Quién está fichando ahora</div>
+      <div class="status-list">`;
+    members.forEach(m=>{
+      const openEntry = state.entries.find(e => e.member_id === m.id && !e.clock_out);
+      const isMe = m.id === state.member.id;
+      html += `<div class="status-row">
+        <span class="status-name">${escapeHtml(m.name)}${isMe ? ' <span class="you-tag">(tú)</span>' : ''}</span>
+        <span class="status-chip${openEntry ? ' active' : ''}">${openEntry ? 'Fichando desde ' + new Date(openEntry.clock_in).toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}) : 'Sin fichar'}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  html += `<div class="section-title">Horas por día y persona</div>`;
+  html += `<div class="card">`;
+  if (!dailyRows.length){
+    html += `<div class="empty">Todavía no hay horas registradas.</div>`;
+  } else {
+    html += `<div style="overflow-x:auto"><table><thead><tr><th>Día</th>`;
+    members.forEach(m=>{ html += `<th style="text-align:right">${escapeHtml(m.name)}</th>`; });
+    html += `<th style="text-align:right">Total</th></tr></thead><tbody>`;
+    dailyRows.forEach(r=>{
+      html += `<tr><td>${dateLabel(r.day)}</td>`;
+      members.forEach(m=>{
+        const h = r.perMember[m.id] || 0;
+        html += `<td class="hours">${h ? fmtHours(h) : '—'}</td>`;
+      });
+      html += `<td class="hours"><strong>${fmtHours(r.total)}</strong></td></tr>`;
+    });
+    html += `</tbody><tfoot><tr><td>Total</td>`;
+    members.forEach(m=>{
+      html += `<td class="hours">${fmtHours(totalsByMember[m.id]||0)}</td>`;
+    });
+    html += `<td class="hours">${fmtHours(grandTotal)}</td></tr></tfoot></table></div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="row-actions">
+      <button class="btn btn-outline" id="export-btn">Exportar a Excel</button>
+      ${isFinished ? "" : `<button class="btn btn-secondary" id="finish-btn">Finalizar proyecto</button>`}
+    </div>`;
+
+  mainEl.innerHTML = html;
+  renderHeader();
+
+  document.getElementById("back-btn").onclick = goToProjects;
+  document.getElementById("export-btn").onclick = () => exportExcel(project, dailyRows, totalsByMember, grandTotal, members);
+  if (!isFinished){
+    document.getElementById("clock-btn").onclick = () => open ? clockOut(open) : clockIn(project);
+    const finishBtn = document.getElementById("finish-btn");
+    if (finishBtn) finishBtn.onclick = () => finalizeProject(project);
+  }
+
+  stopTimer();
+  if (open) startTimer(open.clock_in);
+}
+
+function computeSummary(entries, members){
+  const byDay = {};        // day -> { perMember:{id:hours}, total }
+  const totalsByMember = {};
+  members.forEach(m => { totalsByMember[m.id] = 0; });
+  let grandTotal = 0;
+
+  entries.forEach(e=>{
+    if (!e.clock_out) return; // los fichajes abiertos no cuentan hasta cerrarse
+    const hours = (new Date(e.clock_out) - new Date(e.clock_in)) / 3600000;
+    const key = dateKey(e.clock_in);
+    if (!byDay[key]) byDay[key] = { perMember:{}, total:0 };
+    byDay[key].perMember[e.member_id] = (byDay[key].perMember[e.member_id] || 0) + hours;
+    byDay[key].total += hours;
+    totalsByMember[e.member_id] = (totalsByMember[e.member_id] || 0) + hours;
+    grandTotal += hours;
+  });
+
+  const dailyRows = Object.keys(byDay).sort().map(day => ({ day, ...byDay[day] }));
+  return { dailyRows, totalsByMember, grandTotal };
+}
+
+/* ---------------------- Fichar entrada / salida ---------------------- */
+
+async function clockIn(project){
+  const { error } = await db.from("time_entries").insert({
+    member_id: state.member.id,
+    project_id: project.id,
+    clock_in: new Date().toISOString(),
+  });
+  if (error){ showToast("Error al fichar entrada: " + error.message); return; }
+  showToast("Entrada marcada");
+  await loadEntriesAndRender();
+}
+
+async function clockOut(entry){
+  const { error } = await db.from("time_entries")
+    .update({ clock_out: new Date().toISOString() })
+    .eq("id", entry.id);
+  if (error){ showToast("Error al fichar salida: " + error.message); return; }
+  showToast("Salida marcada");
+  await loadEntriesAndRender();
+}
+
+function startTimer(sinceIso){
+  const since = new Date(sinceIso);
+  const el = document.getElementById("timer-display");
+  function tick(){
+    const diff = Math.max(0, Date.now() - since.getTime());
+    const h = String(Math.floor(diff / 3600000)).padStart(2,"0");
+    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2,"0");
+    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2,"0");
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  }
+  tick();
+  state.timerInterval = setInterval(tick, 1000);
+}
+function stopTimer(){
+  if (state.timerInterval){ clearInterval(state.timerInterval); state.timerInterval = null; }
+}
+
+/* ---------------------- Finalizar proyecto ---------------------- */
+
+async function finalizeProject(project){
+  const open = state.entries.find(e => !e.clock_out);
+  if (open){
+    showToast("Hay un fichaje abierto sin marcar salida. Ciérralo antes de finalizar.");
+    return;
+  }
+  if (!confirm(`¿Finalizar "${project.name}"? Se hará un resumen de horas totales y dejará de admitir nuevos fichajes.`)){
+    return;
+  }
+  const { error } = await db.from("projects")
+    .update({ status:"finished", finished_at: new Date().toISOString() })
+    .eq("id", project.id);
+  if (error){ showToast("Error al finalizar: " + error.message); return; }
+  showToast("Proyecto finalizado");
+  const { data } = await db.from("projects").select("*").eq("id", project.id).single();
+  state.currentProject = data;
+  const idx = state.projects.findIndex(p=>p.id === project.id);
+  if (idx >= 0) state.projects[idx] = data;
+  await loadEntriesAndRender();
+}
+
+/* ---------------------- Exportar a Excel ---------------------- */
+
+function exportExcel(project, dailyRows, totalsByMember, grandTotal, members){
+  const rows = dailyRows.map(r => {
+    const row = { Fecha: r.day };
+    members.forEach(m => { row[m.name] = Math.round((r.perMember[m.id] || 0) * 100) / 100; });
+    row["Total"] = Math.round(r.total * 100) / 100;
+    return row;
+  });
+  const totalRow = { Fecha: "TOTAL" };
+  members.forEach(m => { totalRow[m.name] = Math.round((totalsByMember[m.id] || 0) * 100) / 100; });
+  totalRow["Total"] = Math.round(grandTotal * 100) / 100;
+  rows.push(totalRow);
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [{ wch: 14 }, ...members.map(()=>({ wch: 12 })), { wch: 12 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Horas");
+
+  const safeName = project.name.replace(/[^a-z0-9áéíóúñ]+/gi, "_");
+  XLSX.writeFile(wb, `horas_${safeName}.xlsx`);
+}
+
+/* ---------------------- Arranque ---------------------- */
+init();
+</script>
+</body>
+</html>
